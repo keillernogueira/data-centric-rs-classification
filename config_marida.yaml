@@ -1,0 +1,27 @@
+trainer:
+    accelerator : 'gpu'
+    precision: 16-mixed
+    min_epochs: 6
+    max_epochs: 100
+    benchmark: True
+    log_every_n_steps: 10
+learning:
+    model: "unet"
+    loss: "ce"
+    backbone: "resnet18"
+    weights: True  # imagenet weights
+    in_channels: 11  # Sentinel 2
+    num_classes: 15
+    learning_rate: 1e-3
+    learning_rate_schedule_patience: 5
+    ignore_index: 0  # classes 0 & 15 are not used in scoring
+datamodule:
+    dataset: "MARIDA"
+    root_dir: "/home/kno/datasets/MARIDA/"
+    agg_to_water: False  # if true, then 11 classes only
+    train_coordinate_file_path: "train_X.txt"
+    training_sample_amount: 694  # 694 is the total number of training samples
+    val_image_file_path: "val_X.txt"
+    batch_size: 64
+    num_workers: 8
+    patch_size: 256
