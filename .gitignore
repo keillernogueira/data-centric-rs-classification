@@ -1,4 +1,4 @@
 /.idea/
 **.pyc
-config_patreo_v2.yaml
-config_brass_v2.yaml
+coord_files/*
+

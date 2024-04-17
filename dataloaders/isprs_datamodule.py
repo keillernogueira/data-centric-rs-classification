@@ -9,9 +9,9 @@ from einops import rearrange
 from matplotlib import colors
 import matplotlib.pyplot as plt
 
-from dfc2022 import DFC2022
-
 from torchgeo.datasets.utils import percentile_normalization
+
+from isprs_dataloader import ISPRSDataLoader
 
 
 DEFAULT_AUGS = K.AugmentationSequential(
@@ -21,10 +21,10 @@ DEFAULT_AUGS = K.AugmentationSequential(
 )
 
 
-class DFC2022DataModule(pl.LightningDataModule):
+class ISPRSDataModule(pl.LightningDataModule):
     # Stats computed in labeled train set
-    dem_min, dem_max = -79.18, 3020.26
-    dem_nodata = -99999.0
+    dsm_min, dsm_max = -79.18, 3020.26  # TODO compute this
+    dsm_nodata = -99999.0
 
     def __init__(
         self,
@@ -32,7 +32,7 @@ class DFC2022DataModule(pl.LightningDataModule):
         batch_size: int = 8,
         num_workers: int = 0,
         train_coordinate_file_path: str = 'train_coords.txt',
-        training_sample_amount: int = 68900,
+        training_sample_perct: float = 1.0,
         val_image_file_path: str = 'val_coords.txt',
         patch_size: int = 256,
         augmentations=DEFAULT_AUGS,
@@ -43,7 +43,7 @@ class DFC2022DataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.train_coordinate_file_path = train_coordinate_file_path
-        self.training_sample_amount = training_sample_amount
+        self.training_sample_perct = training_sample_perct
         self.val_image_file_path = val_image_file_path
         self.patch_size = patch_size
         self.augmentations = augmentations
@@ -61,15 +61,12 @@ class DFC2022DataModule(pl.LightningDataModule):
     def preprocess(self, sample):
         # RGB is uint8 so divide by 255
         sample["image"][:3] /= 255.0
-        sample["image"][-1] = (sample["image"][-1] - self.dem_min) / (
-            self.dem_max - self.dem_min
+
+        # min-max normalization for the DSM
+        sample["image"][-1] = (sample["image"][-1] - self.dsm_min) / (
+            self.dsm_max - self.dsm_min
         )
         sample["image"][-1] = torch.clip(sample["image"][-1], min=0.0, max=1.0)
-
-        if "mask" in sample:
-            # ignore the clouds and shadows class (not used in scoring)
-            sample["mask"][sample["mask"] == 15] = 0
-            sample["mask"] = rearrange(sample["mask"], "h w -> () h w")
 
         return sample
 
@@ -94,17 +91,17 @@ class DFC2022DataModule(pl.LightningDataModule):
         val_transforms = T.Compose([self.preprocess, self.crop])
         test_transforms = T.Compose([self.preprocess])
 
-        self.train_dataset = DFC2022(self.root_dir, self.train_coordinate_file_path, "train",
-                                     self.patch_size, training_sample_amount=self.training_sample_amount,
-                                     transforms=train_transforms)
+        self.train_dataset = ISPRSDataLoader(self.root_dir, self.train_coordinate_file_path, "train",
+                                             self.patch_size, training_sample_perct=self.training_sample_perct,
+                                             transforms=train_transforms)
 
         # for validation, there is no patch size for the dataloader since patches are generated using the transforms
-        self.val_dataset = DFC2022(self.root_dir, self.val_image_file_path, "train_val",
-                                   patch_size=-1, transforms=val_transforms)
+        self.val_dataset = ISPRSDataLoader(self.root_dir, self.val_image_file_path, "train_val",
+                                           patch_size=-1, transforms=val_transforms)
 
         # for test, there is no patch size since images are processed entirely
-        self.test_dataset = DFC2022(self.root_dir, None, "test",
-                                    patch_size=-1, transforms=test_transforms)
+        self.test_dataset = ISPRSDataLoader(self.root_dir, None, "test",
+                                            patch_size=-1, transforms=test_transforms)
 
     def train_dataloader(self):
         return DataLoader(
@@ -153,13 +150,13 @@ class DFC2022DataModule(pl.LightningDataModule):
         image = image.to(torch.uint8)
         image = image.permute(1, 2, 0).numpy()
 
-        dem = sample["image"][-1].numpy()
-        dem = percentile_normalization(dem, lower=0, upper=100, axis=(0, 1))
+        dsm = sample["image"][-1].numpy()
+        dsm = percentile_normalization(dsm, lower=0, upper=100, axis=(0, 1))
 
         showing_mask = "mask" in sample
         showing_prediction = "prediction" in sample
 
-        cmap = colors.ListedColormap(DFC2022.colormap)
+        cmap = colors.ListedColormap(ISPRSDataLoader.colormap)
 
         if showing_mask:
             mask = sample["mask"].numpy()
@@ -172,7 +169,7 @@ class DFC2022DataModule(pl.LightningDataModule):
 
         axs[0].imshow(image)
         axs[0].axis("off")
-        axs[1].imshow(dem)
+        axs[1].imshow(dsm)
         axs[1].axis("off")
         if showing_mask:
             axs[2].imshow(mask, cmap=cmap, interpolation="none")
@@ -186,7 +183,7 @@ class DFC2022DataModule(pl.LightningDataModule):
 
         if show_titles:
             axs[0].set_title("Image")
-            axs[1].set_title("DEM")
+            axs[1].set_title("DSM")
 
             if showing_mask:
                 axs[2].set_title("Ground Truth")

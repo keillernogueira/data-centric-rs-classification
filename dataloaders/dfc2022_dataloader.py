@@ -65,7 +65,7 @@ class DFC2022(Dataset):
             coordinate_file_path=None,
             split="train",
             patch_size=256,
-            training_sample_amount=77133,
+            training_sample_perct=1.0,
             transforms=None
     ) -> None:
         assert split in self.metadata
@@ -73,7 +73,7 @@ class DFC2022(Dataset):
         self.coordinate_file_path = coordinate_file_path
         self.split = split
         self.patch_size = patch_size
-        self.training_sample_amount = training_sample_amount
+        self.training_sample_perct = training_sample_perct
         self.transforms = transforms
 
         self.files = self._load_files()
@@ -111,17 +111,20 @@ class DFC2022(Dataset):
             # file_list = np.genfromtxt(self.coordinate_file_path, dtype=None, delimiter=' ')
             file_list = pd.read_csv(self.coordinate_file_path, dtype=None, delimiter=' ').to_numpy()
 
-            if self.coordinate_file_path == 'train_coordinate_list.txt':
+            if self.coordinate_file_path == 'dfc2022_train_coordinate_list.txt':
+                # this is the original coord list; this is only used to train the baseline model
                 # shuffle because all instances have score 1.0
                 np.random.shuffle(file_list)  # shuffle
                 sort_samples = file_list
             else:
                 # otherwise, sort based on the score
+                # this are the correct files usually named: xxx_train_coords.txt, where xxx = name of team
                 sort_samples = file_list[file_list[:, 4].argsort()[::-1]]
 
             # selecting samples based on the threshold
-            selected_samples = sort_samples[0:self.training_sample_amount, :]
-            print('check average score', np.mean(selected_samples[:, 4]))
+            total_size = len(sort_samples)
+            selected_samples = sort_samples[0:int(total_size*self.training_sample_perct), :]
+            print('sanity check - average score: ', np.mean(selected_samples[:, 4]))
 
             files = []
             for x in selected_samples:

@@ -16,11 +16,11 @@ learning:
     learning_rate_schedule_patience: 5
     ignore_index: 0  # classes 0 & 15 are not used in scoring
 datamodule:
-    dataset: "MARIDA"
-    root_dir: "/home/kno/datasets/MARIDA/"
+    dataset: "ISPRS"
+    root_dir: "/home/kno/datasets/vaihingen/"
     agg_to_water: False  # if true, then 11 classes only
     train_coordinate_file_path: "train_X.txt"
-    training_sample_amount: 694  # 694 is the total number of training samples
+    training_sample_perct: 1.0  # 694 is the total number of training samples
     val_image_file_path: "val_X.txt"
     batch_size: 64
     num_workers: 8
