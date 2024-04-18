@@ -194,10 +194,10 @@ if __name__ == "__main__":
     train_instances = create_coord_distribution(subset_train_files, args.dataset, args.patch_size, args.stride_size)
     train_instances = remove_duplicates(train_instances)
     print(len(train_instances))
-    np.savetxt(args.dataset + 'train_coordinate_list.txt', train_instances, fmt='%s', delimiter=' ')
+    np.savetxt(args.dataset + '_train_coordinate_list.txt', train_instances, fmt='%s', delimiter=' ')
 
     val_instances = prepare_val(subset_val_files, args.dataset)
-    np.savetxt(args.dataset + '_val_coordinate_list.txt', val_instances, fmt='%s', delimiter=' ')
+    np.savetxt(args.dataset + '_val_image_list.txt', val_instances, fmt='%s', delimiter=' ')
 
     # plot example
     # plot_example(subset_train_files[2], args.patch_size, args.stride_size)
