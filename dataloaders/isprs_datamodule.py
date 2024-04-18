@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from torchgeo.datasets.utils import percentile_normalization
 
-from isprs_dataloader import ISPRSDataLoader
+from dataloaders.isprs_dataloader import ISPRSDataLoader
 
 
 DEFAULT_AUGS = K.AugmentationSequential(
@@ -96,7 +96,7 @@ class ISPRSDataModule(pl.LightningDataModule):
                                              transforms=train_transforms)
 
         # for validation, there is no patch size for the dataloader since patches are generated using the transforms
-        self.val_dataset = ISPRSDataLoader(self.root_dir, self.val_image_file_path, "train_val",
+        self.val_dataset = ISPRSDataLoader(self.root_dir, self.val_image_file_path, "val",
                                            patch_size=-1, transforms=val_transforms)
 
         # for test, there is no patch size since images are processed entirely

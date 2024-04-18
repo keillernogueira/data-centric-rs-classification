@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from torchgeo.datasets.utils import percentile_normalization
 
-from dfc2022_dataloader import DFC2022
+from dataloaders.dfc2022_dataloader import DFC2022
 
 
 DEFAULT_AUGS = K.AugmentationSequential(

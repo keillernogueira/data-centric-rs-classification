@@ -71,12 +71,12 @@ class ISPRSDataLoader(data.Dataset):
         image = torch.cat(tensors=[image, dem], dim=0)
 
         mask = self._encode_mask(self._load_target(label_path))
-        print(mask.shape, np.unique(mask), np.bincount(mask.flatten()))
+        # print(mask.shape, np.unique(mask), np.bincount(mask.flatten()))
 
         if self.coordinate_file_path is not None and self.patch_size != -1:
             coord_x, coord_y = self.files[index]['coord_x'], self.files[index]['coord_y']
             image = image[:, coord_x:coord_x + self.patch_size, coord_y:coord_y + self.patch_size]
-            mask = mask[coord_x:coord_x + self.patch_size, coord_y:coord_y + self.patch_size]
+            mask = mask[:, coord_x:coord_x + self.patch_size, coord_y:coord_y + self.patch_size]
 
         sample = {"image": image, "mask": mask}
 
@@ -86,24 +86,29 @@ class ISPRSDataLoader(data.Dataset):
         return sample
 
     def __len__(self):
+        # if self.split == 'val':
+        #     return len(self.files) * 50  # 50 random patches from each validation image
+        # else:
         return len(self.files)
 
     def _encode_mask(self, msk):
-        msk = msk.astype(np.int64)
-        new = np.zeros((msk.shape[0], msk.shape[1]), dtype=np.int)
+        msk = np.rollaxis(msk.numpy(), 0, 3)
+        new = np.zeros((msk.shape[0], msk.shape[1]), dtype=int)
 
         msk = msk // 255
         msk = msk * (1, 7, 49)
         msk = msk.sum(axis=2)
 
         new[msk == 1 + 7 + 49] = 0  # Street.
-        new[msk ==         49] = 0  # Building.
-        new[msk ==     7 + 49] = 0  # Grass.
-        new[msk ==     7     ] = 0  # Tree.
-        new[msk == 1 + 7     ] = 1  # Car.
-        new[msk == 1         ] = 0  # Surfaces.
+        new[msk ==         49] = 1  # Building.
+        new[msk ==     7 + 49] = 2  # Grass.
+        new[msk ==     7     ] = 3  # Tree.
+        new[msk == 1 + 7     ] = 4  # Car.
+        new[msk == 1         ] = 5  # Surfaces.
 
-        return new
+        tensor = torch.from_numpy(new[np.newaxis, :, :])
+
+        return tensor
 
     def _load_files(self):
         if self.coordinate_file_path is not None:
@@ -124,12 +129,12 @@ class ISPRSDataLoader(data.Dataset):
             # selecting samples based on the threshold
             total_size = len(sort_samples)
             selected_samples = sort_samples[0:int(total_size*self.training_sample_perct), :]
-            print('sanity check - average score: ', np.mean(selected_samples[:, 4]))
+            print('sanity check - average score: ', np.mean(selected_samples[:, 5]))
 
             files = []
             for x in selected_samples:
                 img_path = os.path.join(self.root, self.image_root, x[0] + '.tif')
-                dsm_path = os.path.join(self.root, self.dsm_root, x[1] + '.tif')
+                dsm_path = os.path.join(self.root, self.dsm_root, x[1] + '.jpg')
                 label_path = os.path.join(self.root, self.target_root, x[2] + '.tif')
                 files.append(dict(image=img_path, dsm=dsm_path, target=label_path,
                                   coord_x=int(x[3]), coord_y=int(x[4])))
@@ -138,7 +143,7 @@ class ISPRSDataLoader(data.Dataset):
             for img in self.metadata[('vaihingen_test' if 'vaihingen' in self.root else 'potsdam_test')]:
                 if 'vaihingen' in self.root:
                     image = os.path.join(self.root, self.image_root, 'top_mosaic_09cm_area' + str(img) + '.tif')
-                    dsm = os.path.join(self.root, self.dsm_root, 'dsm_09cm_matching_area' + str(img) + '_normalized.tif')
+                    dsm = os.path.join(self.root, self.dsm_root, 'dsm_09cm_matching_area' + str(img) + '_normalized.jpg')
                     target = os.path.join(self.root, self.target_root, 'top_mosaic_09cm_area' + str(img) + '.tif')
                 else:
                     image = os.path.join(self.root, self.image_root, 'top_potsdam_' + str(img) + '_RGBIR.tif')
@@ -160,7 +165,7 @@ class ISPRSDataLoader(data.Dataset):
     def _load_target(self, path):
         with rasterio.open(path) as f:
             array: "np.typing.NDArray[np.int_]" = f.read(
-                indexes=1, out_dtype="int32", resampling=Resampling.bilinear
+                out_dtype="int32", resampling=Resampling.bilinear
             )
             tensor = torch.from_numpy(array)
             tensor = tensor.to(torch.long)

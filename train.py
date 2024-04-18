@@ -1,4 +1,6 @@
 import argparse
+import warnings
+import rasterio
 
 # import pytorch_lightning as pl
 import lightning.pytorch as pl
@@ -8,6 +10,8 @@ from torchgeo.trainers import SemanticSegmentationTask
 
 from dataloaders.dfc2022_datamodule import DFC2022DataModule
 from dataloaders.isprs_datamodule import ISPRSDataModule
+
+warnings.filterwarnings("ignore", category=rasterio.errors.NotGeoreferencedWarning)
 
 
 def main(_config):

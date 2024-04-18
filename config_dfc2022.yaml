@@ -12,8 +12,8 @@ learning:
     weights: True  # imagenet weights
     in_channels: 4  # RGB+DEM
     num_classes: 16
-    learning_rate: 1e-3
-    learning_rate_schedule_patience: 6
+    lr: 1e-3
+    patience: 6
     ignore_index: 0  # classes 0 & 15 are not used in scoring
 datamodule:
     dataset: "DFC2022"
