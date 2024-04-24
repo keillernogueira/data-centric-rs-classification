@@ -16,8 +16,8 @@ learning:
     patience: 5
     ignore_index: -1  # classes 0 & 15 are not used in scoring
 datamodule:
-    dataset: "ISPRS"
-    root_dir: "/home/kno/datasets/vaihingen/"
+    dataset: "vaihingen"
+    root_dir: "/home/kno/datasets/vaihingen/original/"
     train_coordinate_file_path: "coord_files/vaihingen_train_coordinate_list.txt"
     training_sample_perct: 1.0  # percentage
     val_image_file_path: "coord_files/vaihingen_val_image_list.txt"

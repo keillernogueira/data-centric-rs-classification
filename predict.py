@@ -1,19 +1,21 @@
-import argparse
-import glob
 import os
+import glob
+import argparse
 
+import rasterio
 import numpy as np
+from tqdm import tqdm
+from omegaconf import OmegaConf
+from einops import rearrange
 import kornia.augmentation as K
 from sklearn.metrics import accuracy_score, confusion_matrix, jaccard_score
-import rasterio
-import torch
-from omegaconf import OmegaConf
-from tqdm import tqdm
-from torchmetrics.classification import MulticlassAccuracy, MulticlassJaccardIndex, MulticlassConfusionMatrix
-from einops import rearrange
 
+import torch
+from torchmetrics.classification import MulticlassAccuracy, MulticlassJaccardIndex, MulticlassConfusionMatrix
 from torchgeo.trainers import SemanticSegmentationTask
-from datamodule import DFC2022DataModule
+
+from dataloaders.dfc2022_datamodule import DFC2022DataModule
+from dataloaders.isprs_datamodule import ISPRSDataModule
 
 
 def write_mask(mask, path, output_dir):
@@ -43,13 +45,22 @@ def predict_torch_metrics(config_file, log_dir, device):
     task.eval()
 
     # Load datamodule and dataloader
-    datamodule = DFC2022DataModule(**general_config.datamodule)
-    datamodule.setup()
-    dataloader = datamodule.test_dataloader()  # batch size is 1
+    if general_config.datamodule.dataset == 'DFC2022':
+        datamodule = DFC2022DataModule(**general_config.datamodule)
+        datamodule.setup()
+        dataloader = datamodule.test_dataloader()  # batch size is 1
 
-    pad = K.PadTo(size=(2048, 2048), pad_mode="constant", pad_value=0.0)
+        pad = K.PadTo(size=(2048, 2048), pad_mode="constant", pad_value=0.0)
 
-    indices = torch.Tensor([1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14]).int().to(device)  # 12 classes
+        indices = torch.Tensor([1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14]).int().to(device)  # 12 classes
+    else:  # vaihingen and potsdam
+        datamodule = ISPRSDataModule(**general_config.datamodule)
+        datamodule.setup()
+        dataloader = datamodule.test_dataloader()  # batch size is 1
+
+        pad = K.PadTo(size=(3008, 3008), pad_mode="constant", pad_value=0.0)  # only used for vaihingen
+
+        indices = torch.Tensor([0, 1, 2, 3, 4, 5]).int().to(device)  # 6 classes
 
     jaccard = torch.zeros(trained_params.num_classes).to(device)
     jaccard_metric = MulticlassJaccardIndex(num_classes=trained_params.num_classes,
@@ -68,7 +79,8 @@ def predict_torch_metrics(config_file, log_dir, device):
     for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
         x = batch["image"].to(device)
         h, w = x.shape[-2:]
-        x = pad(x)
+        if general_config.datamodule.dataset == 'DFC2022' or general_config.datamodule.dataset == 'vaihingen':
+            x = pad(x)
         preds = task(x)
         preds = preds[0, :, :h, :w]
         preds = rearrange(preds, "c h w -> (h w) c")
@@ -86,8 +98,8 @@ def predict_torch_metrics(config_file, log_dir, device):
     # print(len(accuracy), len(jaccard))  # 300 300
 
     ave_jac = jaccard / len(dataloader)  # average IoU per class
-    ave_jac_specific_classes = torch.index_select(ave_jac, 0, indices)  # get the 12 classes
-    # print(ave_jac)
+    print(ave_jac)
+    ave_jac_specific_classes = torch.index_select(ave_jac, 0, indices)  # get classes
     print(ave_jac_specific_classes)
     print(torch.mean(ave_jac_specific_classes))  # calculate the final average
     # print(torch.std(ave_jac_specific_classes))
@@ -98,9 +110,9 @@ def predict_torch_metrics(config_file, log_dir, device):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config_file", type=str, required=True, help="Path to config_dfc2022.yaml file")
+    parser.add_argument("--config_file", type=str, required=True, help="Path to yaml file")
     parser.add_argument("--log_dir", type=str, required=True,
-                        help="Path to log directory containing config_dfc2022.yaml and checkpoint")
+                        help="Path to log directory containing checkpoint (usually lightning_logs/)")
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"])
     args = parser.parse_args()
 

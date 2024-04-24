@@ -21,7 +21,7 @@ def main(_config):
 
     if _config.datamodule.dataset == 'DFC2022':
         datamodule = DFC2022DataModule(**_config.datamodule)
-    elif _config.datamodule.dataset == 'ISPRS':
+    elif _config.datamodule.dataset == 'potsdam' or _config.datamodule.dataset == 'vaihingen':
         datamodule = ISPRSDataModule(**_config.datamodule)
     else:
         raise NotImplementedError('Dataset not implemented. Options are DFC2022 and ISPRS.')

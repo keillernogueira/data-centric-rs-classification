@@ -129,7 +129,8 @@ class ISPRSDataLoader(data.Dataset):
             # selecting samples based on the threshold
             total_size = len(sort_samples)
             selected_samples = sort_samples[0:int(total_size*self.training_sample_perct), :]
-            print('sanity check - average score: ', np.mean(selected_samples[:, 5]))
+            print('sanity check - select and total samples, average score: ',
+                  len(selected_samples), total_size, np.mean(selected_samples[:, 5]))
 
             files = []
             for x in selected_samples:
@@ -147,7 +148,7 @@ class ISPRSDataLoader(data.Dataset):
                     target = os.path.join(self.root, self.target_root, 'top_mosaic_09cm_area' + str(img) + '.tif')
                 else:
                     image = os.path.join(self.root, self.image_root, 'top_potsdam_' + str(img) + '_RGBIR.tif')
-                    dsm = os.path.join(self.root, self.dsm_root, 'dsm_potsdam_0' + str(img) + '_normalized_ownapproach.jpg')
+                    dsm = os.path.join(self.root, self.dsm_root, 'dsm_potsdam_0' + str(img) + '_normalized_lastools.jpg')
                     target = os.path.join(self.root, self.target_root, 'top_potsdam_' + str(img) + '_label.tif')
 
                 files.append(dict(image=image, dsm=dsm, target=target))

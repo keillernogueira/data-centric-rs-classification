@@ -23,10 +23,18 @@ def _load_image(path, shape=None):
 def _load_files(dataset, root, split='labeled_train'):
     if dataset == 'DFC2022':
         files = glob.glob(os.path.join(root, split, "**", 'UrbanAtlas', "*.tif"), recursive=True)
-    else:  # vaihingen or potsdam
+    elif dataset == 'vaihingen':
         images = sorted(glob.glob(os.path.join(root, 'images', "*.tif")), key=lambda x: (int(x[:-4].split('_')[-1][4:]), x))
         ndsm = sorted(glob.glob(os.path.join(root, 'ndsm', "*.jpg")), key=lambda x: (int(x.split('_')[-2][4:]), x))
         masks = sorted(glob.glob(os.path.join(root, 'masks', "*.tif")), key=lambda x: (int(x[:-4].split('_')[-1][4:]), x))
+        files = np.vstack((np.asarray(images), np.asarray(ndsm), np.asarray(masks))).T  # shape = x, 3
+    else:  # potsdam
+        images = sorted(glob.glob(os.path.join(root, 'images', "*.tif")),
+                        key=lambda x: (int(x.split('/')[-1][12:-10]), x))
+        ndsm = sorted(glob.glob(os.path.join(root, 'ndsm', "*_normalized_lastools.jpg")),
+                      key=lambda x: (int(x.split('/')[-1][12:-27].replace("07", "7").replace("08", "8").replace("09", "9")), x))
+        masks = sorted(glob.glob(os.path.join(root, 'masks', "*.tif")),
+                       key=lambda x: (int(x.split('/')[-1][12:-10]), x))
         files = np.vstack((np.asarray(images), np.asarray(ndsm), np.asarray(masks))).T  # shape = x, 3
 
     return files
