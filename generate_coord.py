@@ -32,7 +32,7 @@ def _load_files(dataset, root, split='labeled_train'):
         images = sorted(glob.glob(os.path.join(root, 'images', "*.tif")),
                         key=lambda x: (int(x.split('/')[-1][12:-10]), x))
         ndsm = sorted(glob.glob(os.path.join(root, 'ndsm', "*_normalized_lastools.jpg")),
-                      key=lambda x: (int(x.split('/')[-1][12:-27].replace("07", "7").replace("08", "8").replace("09", "9")), x))
+                      key=lambda x: (int(x.split('/')[-1][12:-24].replace("07", "7").replace("08", "8").replace("09", "9")), x))
         masks = sorted(glob.glob(os.path.join(root, 'masks', "*.tif")),
                        key=lambda x: (int(x.split('/')[-1][12:-10]), x))
         files = np.vstack((np.asarray(images), np.asarray(ndsm), np.asarray(masks))).T  # shape = x, 3
