@@ -14,7 +14,7 @@ learning:
     num_classes: 6
     lr: 1e-3
     patience: 5
-    ignore_index: -1  # classes 0 & 15 are not used in scoring
+    ignore_index: -1
 datamodule:
     dataset: "vaihingen"
     root_dir: "/home/kno/datasets/vaihingen/original/"

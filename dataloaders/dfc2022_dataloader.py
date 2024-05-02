@@ -109,7 +109,7 @@ class DFC2022(Dataset):
             # read list of patches
             # file_list = np.loadtxt(self.coordinate_file_path, dtype=str, delimiter=' ')
             # file_list = np.genfromtxt(self.coordinate_file_path, dtype=None, delimiter=' ')
-            file_list = pd.read_csv(self.coordinate_file_path, dtype=None, delimiter=' ').to_numpy()
+            file_list = pd.read_csv(self.coordinate_file_path, dtype=None, delimiter=' ', header=None).to_numpy()
 
             if self.coordinate_file_path == 'dfc2022_train_coordinate_list.txt':
                 # this is the original coord list; this is only used to train the baseline model

@@ -113,7 +113,7 @@ class ISPRSDataLoader(data.Dataset):
     def _load_files(self):
         if self.coordinate_file_path is not None:
             # read list of patches
-            file_list = pd.read_csv(self.coordinate_file_path, dtype=None, delimiter=' ').to_numpy()
+            file_list = pd.read_csv(self.coordinate_file_path, dtype=None, delimiter=' ', header=None).to_numpy()
 
             if (self.coordinate_file_path == 'vaihingen_train_coordinate_list.txt' or
                     self.coordinate_file_path == 'potsdam_train_coordinate_list.txt'):
