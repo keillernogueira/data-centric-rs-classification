@@ -100,10 +100,8 @@ class ISPRSDataModule(pl.LightningDataModule):
                                            patch_size=-1, transforms=val_transforms)
 
         # for test, there is no patch size since images are processed entirely
-        self.test_dataset = ISPRSDataLoader(self.root_dir, self.val_image_file_path, "val",
+        self.test_dataset = ISPRSDataLoader(self.root_dir, None, "test",
                                             patch_size=-1, transforms=test_transforms)
-        # self.test_dataset = ISPRSDataLoader(self.root_dir, None, "test",
-        #                                     patch_size=-1, transforms=test_transforms)
 
     def train_dataloader(self):
         return DataLoader(

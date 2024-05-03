@@ -114,7 +114,6 @@ class ISPRSDataLoader(data.Dataset):
         if self.coordinate_file_path is not None:
             # read list of patches
             file_list = pd.read_csv(self.coordinate_file_path, dtype=None, delimiter=' ', header=None).to_numpy()
-
             if (self.coordinate_file_path == 'vaihingen_train_coordinate_list.txt' or
                     self.coordinate_file_path == 'potsdam_train_coordinate_list.txt'):
                 # this is the original coord list; this is only used to train the baseline model

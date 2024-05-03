@@ -15,6 +15,7 @@ learning:
     lr: 1e-3
     patience: 5
     ignore_index: -1
+    steps: 44  # len(train_dataset)=1431 / batch_size=32
 datamodule:
     dataset: "vaihingen"
     root_dir: "/home/kno/datasets/vaihingen/original/"
