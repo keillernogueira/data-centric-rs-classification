@@ -15,10 +15,10 @@ learning:
     lr: 1e-3
     patience: 5
     ignore_index: -1
-    steps: 44  # len(train_dataset)=1431 / batch_size=32
+    # steps: 44  # len(train_dataset)=1431 / batch_size=32
 datamodule:
     dataset: "vaihingen"
-    root_dir: "/home/kno/datasets/vaihingen/original/"
+    root_dir: "/home/kno/datasets/vaihingen/Vaihingen/"
     train_coordinate_file_path: "coord_files/vaihingen_train_coordinate_list.txt"
     training_sample_perct: 1.0  # percentage
     val_image_file_path: "coord_files/vaihingen_val_image_list.txt"

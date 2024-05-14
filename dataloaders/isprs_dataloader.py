@@ -39,7 +39,7 @@ class ISPRSDataLoader(data.Dataset):
     }
 
     image_root = "images"
-    dsm_root = "ndsm"
+    dsm_root = "dsm"
     target_root = "masks"
 
     def __init__(self,
@@ -134,7 +134,7 @@ class ISPRSDataLoader(data.Dataset):
             files = []
             for x in selected_samples:
                 img_path = os.path.join(self.root, self.image_root, x[0] + '.tif')
-                dsm_path = os.path.join(self.root, self.dsm_root, x[1] + '.jpg')
+                dsm_path = os.path.join(self.root, self.dsm_root, x[1] + ('.tif' if 'vaihingen' in self.coordinate_file_path else '.jpg'))
                 label_path = os.path.join(self.root, self.target_root, x[2] + '.tif')
                 files.append(dict(image=img_path, dsm=dsm_path, target=label_path,
                                   coord_x=int(x[3]), coord_y=int(x[4])))
@@ -143,7 +143,7 @@ class ISPRSDataLoader(data.Dataset):
             for img in self.metadata[('vaihingen_test' if 'vaihingen' in self.root else 'potsdam_test')]:
                 if 'vaihingen' in self.root:
                     image = os.path.join(self.root, self.image_root, 'top_mosaic_09cm_area' + str(img) + '.tif')
-                    dsm = os.path.join(self.root, self.dsm_root, 'dsm_09cm_matching_area' + str(img) + '_normalized.jpg')
+                    dsm = os.path.join(self.root, self.dsm_root, 'dsm_09cm_matching_area' + str(img) + '.tif')
                     target = os.path.join(self.root, self.target_root, 'top_mosaic_09cm_area' + str(img) + '.tif')
                 else:
                     image = os.path.join(self.root, self.image_root, 'top_potsdam_' + str(img) + '_RGBIR.tif')

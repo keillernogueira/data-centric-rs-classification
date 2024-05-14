@@ -58,7 +58,8 @@ def predict_torch_metrics(config_file, log_dir, device):
         datamodule.setup()
         dataloader = datamodule.test_dataloader()  # batch size is 1
 
-        pad = K.PadTo(size=(3008, 3008), pad_mode="constant", pad_value=0.0)  # only used for vaihingen
+        # only used for vaihingen
+        pad = K.PadTo(size=(3008, 3008), pad_mode="constant", pad_value=0.0)
 
         indices = torch.Tensor([0, 1, 2, 3, 4, 5]).int().to(device)  # 6 classes
 

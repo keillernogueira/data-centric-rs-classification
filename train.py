@@ -49,8 +49,8 @@ class SegmentationTaskCustomScheduler(SemanticSegmentationTask):
 def main(_config):
     pl.seed_everything(0)
 
-    # task = SemanticSegmentationTask(**_config.learning)  # model = unet (with imagenet), loss = ce (no class weights)
-    task = SegmentationTaskCustomScheduler(**_config.learning)
+    task = SemanticSegmentationTask(**_config.learning)  # model = unet (with imagenet), loss = ce (no class weights)
+    # task = SegmentationTaskCustomScheduler(**_config.learning)
 
     if _config.datamodule.dataset == 'DFC2022':
         datamodule = DFC2022DataModule(**_config.datamodule)
