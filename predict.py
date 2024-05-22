@@ -59,7 +59,7 @@ def predict_torch_metrics(config_file, log_dir, device):
         dataloader = datamodule.test_dataloader()  # batch size is 1
 
         # only used for vaihingen
-        pad = K.PadTo(size=(3008, 3008), pad_mode="constant", pad_value=0.0)
+        pad = K.PadTo(size=(3840, 3840), pad_mode="constant", pad_value=0.0)
 
         indices = torch.Tensor([0, 1, 2, 3, 4, 5]).int().to(device)  # 6 classes
 
@@ -79,11 +79,13 @@ def predict_torch_metrics(config_file, log_dir, device):
 
     for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
         x = batch["image"].to(device)
+        print('input image', x.shape, batch["mask"].shape)
         h, w = x.shape[-2:]
         if general_config.datamodule.dataset == 'DFC2022' or general_config.datamodule.dataset == 'vaihingen':
             x = pad(x)
         preds = task(x)
         preds = preds[0, :, :h, :w]
+        print('preds', preds.shape)
         preds = rearrange(preds, "c h w -> (h w) c")
         target = batch["mask"].to(device).flatten()
         # print(preds.get_device(), target.get_device())
