@@ -1,4 +1,6 @@
 /.idea/
 **.pyc
 script_test_*
-/configs/
+configs/config_vaihingen_*
+configs/config_potsdam_*
+
