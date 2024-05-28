@@ -1,5 +1,4 @@
 /.idea/
 **.pyc
-script_test.sh
-config_vaihingen_*
-
+script_test_*
+/configs/

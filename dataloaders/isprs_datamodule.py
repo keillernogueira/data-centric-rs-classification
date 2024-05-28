@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from torchgeo.datasets.utils import percentile_normalization
 
-from dataloaders.isprs_dataloader import ISPRSDataLoader
+from dataloaders.isprs_dataloader import ISPRSDataLoader, ISPRSDataLoaderPatch
 
 
 DEFAULT_AUGS = K.AugmentationSequential(
@@ -22,10 +22,6 @@ DEFAULT_AUGS = K.AugmentationSequential(
 
 
 class ISPRSDataModule(pl.LightningDataModule):
-    # Stats computed in labeled train set
-    dsm_min, dsm_max = -79.18, 3020.26  # TODO compute this
-    dsm_nodata = -99999.0
-
     def __init__(
         self,
         root_dir: str,
@@ -36,6 +32,7 @@ class ISPRSDataModule(pl.LightningDataModule):
         val_image_file_path: str = 'val_coords.txt',
         patch_size: int = 256,
         augmentations=DEFAULT_AUGS,
+        patch_loader=True,
         **kwargs,
     ):
         super().__init__()
@@ -47,6 +44,7 @@ class ISPRSDataModule(pl.LightningDataModule):
         self.val_image_file_path = val_image_file_path
         self.patch_size = patch_size
         self.augmentations = augmentations
+        self.patch_loader = patch_loader
         # self.random_crop = T.RandomCrop((self.patch_size, self.patch_size))
         self.random_crop = K.AugmentationSequential(
             K.RandomCrop((self.patch_size, self.patch_size), p=1.0, keepdim=False),
@@ -59,15 +57,19 @@ class ISPRSDataModule(pl.LightningDataModule):
         self.predict_dataset = None
 
     def preprocess(self, sample):
-        # RGB is uint8 so divide by 255
-        sample["image"][:3] /= 255.0
+        if 'postdam' in self.train_coordinate_file_path:
+            # for potsdam, the images and dsms are encoded as uint8, varying from 0 to 255
+            sample["image"] /= 255.0
+        else:
+            # Stats computed in labeled train set
+            dsm_min, dsm_max = 240.7338, 359.9981
 
-        # min-max normalization for the DSM
-        sample["image"][-1] = (sample["image"][-1] - self.dsm_min) / (
-            self.dsm_max - self.dsm_min
-        )
-        sample["image"][-1] = torch.clip(sample["image"][-1], min=0.0, max=1.0)
+            # RGB is uint8 so divide by 255
+            sample["image"][:-1] /= 255.0
 
+            # min-max normalization for the DSM
+            sample["image"][-1] = (sample["image"][-1] - dsm_min) / (dsm_max - dsm_min)
+            sample["image"][-1] = torch.clip(sample["image"][-1], min=0.0, max=1.0)
         return sample
 
     # this is only used to simplify the validation process
@@ -91,9 +93,16 @@ class ISPRSDataModule(pl.LightningDataModule):
         val_transforms = T.Compose([self.preprocess, self.crop])
         test_transforms = T.Compose([self.preprocess])
 
-        self.train_dataset = ISPRSDataLoader(self.root_dir, self.train_coordinate_file_path, "train",
-                                             self.patch_size, training_sample_perct=self.training_sample_perct,
-                                             transforms=train_transforms)
+        if self.patch_loader is False:
+            # create patches on the fly
+            self.train_dataset = ISPRSDataLoader(self.root_dir, self.train_coordinate_file_path, "train",
+                                                 self.patch_size, training_sample_perct=self.training_sample_perct,
+                                                 transforms=train_transforms)
+        else:
+            # otherwise, load patches from disk
+            self.train_dataset = ISPRSDataLoaderPatch(self.root_dir, self.train_coordinate_file_path, "train",
+                                                      self.patch_size, training_sample_perct=self.training_sample_perct,
+                                                      transforms=train_transforms)
 
         # for validation, there is no patch size for the dataloader since patches are generated using the transforms
         self.val_dataset = ISPRSDataLoader(self.root_dir, self.val_image_file_path, "val",
