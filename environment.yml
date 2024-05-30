@@ -1,0 +1,15 @@
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - mamba
+  - pip
+  - ca-certificates
+  - certifi
+  - openssl
+  - notebook
+  - jupyter_contrib_nbextensions
+  - numpy
+  - pandas
+  - seaborn
+  - scikit-learn
