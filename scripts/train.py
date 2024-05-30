@@ -63,7 +63,7 @@ def main(config):
             ckpt_dir_path = f"checkpoints/{config['evaluation']['method_name'].lower().replace(' ', '_')}_{sample_size}_run{run}"
 
             early_stop_callback = EarlyStopping(
-                monitor="val_loss", min_delta=0.00, patience=20, mode="min"
+                monitor="val_loss", min_delta=0.00, patience=100, mode="min"
             )
             checkpoint_callback = ModelCheckpoint(
                 monitor="val_loss",
