@@ -18,10 +18,10 @@ learning:
 datamodule:
     dataset: "DFC2022"
     root_dir: "/home/kno/datasets/df2022/"
-    train_coordinate_file_path: "dfc2022_train_coordinate_list.txt"
+    train_coordinate_file_path: "coord_files/dfc2022_train_coordinate_list.txt"
     # 1% =~ 770, 10% =~ 7700, 25% =~ 19000, 50% =~ 38500
     training_sample_perct: 1.0  # 68900 is the total number of training samples
-    val_image_file_path: "dfc2022_val_image_list.txt"
+    val_image_file_path: "coord_files/dfc2022_val_image_list.txt"
     batch_size: 64
     num_workers: 8
     patch_size: 256

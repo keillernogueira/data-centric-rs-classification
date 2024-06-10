@@ -67,7 +67,10 @@ class ISPRSDataLoader(data.Dataset):
             self.files[index]["dsm"], self.files[index]["target"]
 
         image = self._load_image(img_path)
-        dem = self._load_image(dsm_path, shape=(1, 6000, 6000))
+        if 'vaihingen' in self.root:
+            dem = self._load_image(dsm_path)
+        else:  # only for potsdam
+            dem = self._load_image(dsm_path, shape=(1, 6000, 6000))
         image = torch.cat(tensors=[image, dem], dim=0)
 
         mask = self._load_target(label_path)

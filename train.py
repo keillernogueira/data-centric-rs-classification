@@ -4,6 +4,7 @@ import rasterio
 
 # import pytorch_lightning as pl
 import lightning.pytorch as pl
+from lightning.pytorch.callbacks import ModelCheckpoint
 from omegaconf import OmegaConf
 
 from torchgeo.trainers import SemanticSegmentationTask
@@ -59,7 +60,15 @@ def main(_config):
     else:
         raise NotImplementedError('Dataset not implemented. Options are DFC2022 and ISPRS.')
 
-    trainer = pl.Trainer(**_config.trainer)
+    checkpoint_callback = ModelCheckpoint(
+        monitor="val_loss",
+        filename="best_model",
+        save_top_k=1,
+        mode="min",
+    )
+
+    trainer = pl.Trainer(callbacks=[checkpoint_callback],
+                         **_config.trainer)
     trainer.fit(model=task, datamodule=datamodule)
 
 
