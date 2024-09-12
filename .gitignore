@@ -5,3 +5,5 @@ configs/config_vaihingen_*
 configs/config_potsdam_*
 configs/config_dfc2022_*
 .DS_Store
+/plots/patches/
+/plots/results/

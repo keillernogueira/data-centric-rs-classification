@@ -11,6 +11,13 @@ import rasterio
 from rasterio.enums import Resampling
 
 
+def normalize_float2uint(patch):
+    info = np.iinfo(patch.dtype)
+    patch = patch / info.max
+    patch = 255 * patch
+    return patch.astype(np.uint8)
+
+
 def _load_target(path, shape=None):
     with rasterio.open(path) as f:
         array: "np.typing.NDArray[np.int_]" = f.read(
@@ -66,6 +73,8 @@ if __name__ == "__main__":
     parser.add_argument("--root_dir", type=str, required=True, help="Path to data")
     parser.add_argument("--coord_file", type=str, required=False,
                         help="Path to coordinates file. Used to create the patches.")
+    parser.add_argument("--patches_all", type=str, required=False,
+                        choices=['all', 'top10', 'bottom10'], help="Create all patches or just for top10 or bottom10")
     parser.add_argument("--patch_size", type=int, required=False, help="Size of the patch.")
     args = parser.parse_args()
 
@@ -82,14 +91,18 @@ if __name__ == "__main__":
             # cv2.imwrite(os.path.join(args.root_dir, file[:-4] + '_decoded.png'), _decode_mask(enc_mask))
     elif args.operation == 'create_patches':
         file_list = pd.read_csv(args.coord_file, dtype=None, delimiter=' ', header=None).to_numpy()
+        if args.patches_all == 'top10':
+            file_list = file_list[:20]
+        elif args.patches_all == 'bottom10':
+            file_list = file_list[-10:]
         for i, x in enumerate(file_list):
             print('processing...', i)
             # open image
             image = _load_image(os.path.join(args.root_dir, 'images', x[0] + '.tif'))
             dsm = _load_image(os.path.join(args.root_dir, 'dsm', x[1] +
                                            ('.tif' if 'vaihingen' in args.coord_file else '.jpg')),
-                              shape=(1, 6000, 6000))
-            mask = _load_target(os.path.join(args.root_dir, 'masks', x[2] + '_encoded.png'))
+                              shape=(1, image.shape[1], image.shape[2]))
+            mask = _load_target(os.path.join(args.root_dir, 'masks', x[2] + '.tif'))  # '_encoded.png'))
             # print('1', image.shape, dsm.shape, mask.shape)
 
             # extract patch
@@ -100,18 +113,38 @@ if __name__ == "__main__":
             # print('2', image_patch.shape, dsm_patch.shape, mask_patch.shape)
 
             # save
-            with rasterio.open(os.path.join(args.root_dir, 'patches', 'images',
-                                            x[0] + '_' + str(coord_x) + '_' + str(coord_y) + '.tif'), 'w',
-                               width=args.patch_size, height=args.patch_size, count=4, dtype='float32') as dst:
-                dst.write(image_patch)
-            with rasterio.open(os.path.join(args.root_dir, 'patches', 'dsm',
-                                            x[1] + '_' + str(coord_x) + '_' + str(coord_y) + '.tif'), 'w',
-                               width=args.patch_size, height=args.patch_size, count=1, dtype='float32') as dst:
-                dst.write(dsm_patch)
-            with rasterio.open(os.path.join(args.root_dir, 'patches', 'masks',
-                                            x[2] + '_' + str(coord_x) + '_' + str(coord_y) + '_encoded.png'), 'w',
-                               width=args.patch_size, height=args.patch_size, count=1, dtype='uint8') as dst:
-                dst.write(mask_patch)
+            if args.patches_all == 'all':
+                # save all patches
+                with rasterio.open(os.path.join(args.root_dir, 'patches', 'images',
+                                                x[0] + '_' + str(coord_x) + '_' + str(coord_y) + '.tif'), 'w',
+                                   width=args.patch_size, height=args.patch_size,
+                                   count=(3 if 'vaihingen' in args.coord_file else 4), dtype='float32') as dst:
+                    dst.write(image_patch)
+                with rasterio.open(os.path.join(args.root_dir, 'patches', 'dsm',
+                                                x[1] + '_' + str(coord_x) + '_' + str(coord_y) + '.tif'), 'w',
+                                   width=args.patch_size, height=args.patch_size, count=1, dtype='float32') as dst:
+                    dst.write(dsm_patch)
+                with rasterio.open(os.path.join(args.root_dir, 'patches', 'masks',
+                                                x[2] + '_' + str(coord_x) + '_' + str(coord_y) + '_encoded.png'), 'w',
+                                   width=args.patch_size, height=args.patch_size, count=1, dtype='uint8') as dst:
+                    dst.write(mask_patch)
+            else:
+                dsm_patch = cv2.normalize(src=dsm_patch, dst=None, alpha=0, beta=255,
+                                          norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                # print(np.min(image_patch), np.max(image_patch), np.min(dsm_patch),
+                #       np.max(dsm_patch), np.min(mask_patch), np.max(mask_patch))
+
+                # save few patches just for visualization
+                imageio.imwrite(os.path.join(args.root_dir, 'patches', 'images',
+                                             x[0] + '_' + str(coord_x) + '_' + str(coord_y) + '_image.png'),
+                                np.rollaxis(image_patch, 0, 3).astype(np.uint8))
+                imageio.imwrite(os.path.join(args.root_dir, 'patches', 'dsm',
+                                             x[0] + '_' + str(coord_x) + '_' + str(coord_y) + '_dsm.png'),
+                                np.repeat(np.rollaxis(dsm_patch, 0, 3), 3, 2).astype(np.uint8))
+                imageio.imwrite(os.path.join(args.root_dir, 'patches', 'masks',
+                                             x[0] + '_' + str(coord_x) + '_' + str(coord_y) + '_label.png'),
+                                np.rollaxis(mask_patch, 0, 3).astype(np.uint8))
+
 
             # sanity check
             # s_i = _load_image(os.path.join(args.root_dir, 'patches', 'images',
