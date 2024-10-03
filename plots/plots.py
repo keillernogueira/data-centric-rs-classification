@@ -32,42 +32,45 @@ def _load_target(path):
         return array
 
 
-def get_vaihingen_kvs():
+def get_vaihingen_kvs(files=None):
     key_vals = defaultdict(list)
     for fn in os.listdir("vaihingen/"):
-        df = pd.read_csv(f"vaihingen/{fn}", delimiter=" ", header=None)
-        df["key"] = df.apply(lambda row: f"{row[0]}_{row[3]}_{row[4]}", axis=1)
-        keys = df["key"].values
-        probs = df[5].values
-        probs = probs / probs.max()
-        for key, val in zip(keys, probs):
-            key_vals[key].append(val)
+        if files is None or (files is not None and fn in files):
+            df = pd.read_csv(f"vaihingen/{fn}", delimiter=" ", header=None)
+            df["key"] = df.apply(lambda row: f"{row[0]}_{row[3]}_{row[4]}", axis=1)
+            keys = df["key"].values
+            probs = df[5].values
+            probs = probs / probs.max()
+            for key, val in zip(keys, probs):
+                key_vals[key].append(val)
     return key_vals
 
 
-def get_potsdam_kvs():
+def get_potsdam_kvs(files=None):
     key_vals = defaultdict(list)
     for fn in os.listdir("potsdam/"):
-        df = pd.read_csv(f"potsdam/{fn}", delimiter=" ", header=None)
-        df["key"] = df.apply(lambda row: f"{row[0]}_{row[3]}_{row[4]}", axis=1)
-        keys = df["key"].values
-        probs = df[5].values
-        probs = probs / probs.max()
-        for key, val in zip(keys, probs):
-            key_vals[key].append(val)
+        if files is None or (files is not None and fn in files):
+            df = pd.read_csv(f"potsdam/{fn}", delimiter=" ", header=None)
+            df["key"] = df.apply(lambda row: f"{row[0]}_{row[3]}_{row[4]}", axis=1)
+            keys = df["key"].values
+            probs = df[5].values
+            probs = probs / probs.max()
+            for key, val in zip(keys, probs):
+                key_vals[key].append(val)
     return key_vals
 
 
-def get_dfc2022_kvs():
+def get_dfc2022_kvs(files=None):
     key_vals = defaultdict(list)
     for fn in os.listdir("dfc2022"):
-        df = pd.read_csv(f"dfc2022/{fn}", delimiter=" ", header=None)
-        df["key"] = df.apply(lambda row: f"{row[0]}_{row[1]}_{row[2]}_{row[3]}", axis=1)
-        keys = df["key"].values
-        probs = df[4].values
-        probs = probs / probs.max()
-        for key, val in zip(keys, probs):
-            key_vals[key].append(val)
+        if files is None or (files is not None and fn in files):
+            df = pd.read_csv(f"dfc2022/{fn}", delimiter=" ", header=None)
+            df["key"] = df.apply(lambda row: f"{row[0]}_{row[1]}_{row[2]}_{row[3]}", axis=1)
+            keys = df["key"].values
+            probs = df[4].values
+            probs = probs / probs.max()
+            for key, val in zip(keys, probs):
+                key_vals[key].append(val)
     return key_vals
 
 
@@ -161,7 +164,7 @@ def plot_line_results(xs, mean_vals, std_vals, title, smooth_curve=False, num=25
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-    plt.savefig(title + "_patches.png")  # dpi=1000
+    plt.savefig(title + "_patches_smooth_" + str(num) + ".png")  # dpi=1000
     plt.show()
     plt.draw()
     # plt.close()
@@ -242,7 +245,6 @@ def process_one_patch(image_name, path, dataset, save_name, patch_size):
     if dataset != 'potsdam':
         dsm_patch = cv2.normalize(src=dsm_patch, dst=None, alpha=0, beta=255,
                                   norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-    print(dsm.shape, dsm_patch.shape, np.min(dsm), np.max(dsm), np.min(dsm_patch), np.max(dsm_patch))
     imageio.imwrite(save_name + '_dsm.png',
                     np.repeat(np.rollaxis(dsm_patch, 0, 3), 3, 2).astype(np.uint8))
 
@@ -342,6 +344,9 @@ if __name__ == "__main__":
     # dfc22_encode_labels('/mnt/DADOS_PONTOISE_1/keiller/datasets/df2022/labeled_train/Nantes_Saint-Nazaire/')
     # dfc22_encode_labels('/mnt/DADOS_PONTOISE_1/keiller/datasets/df2022/labeled_train/Nice/')
 
+    feat_based = ['vaihingen_train_coordinate_list_method1.txt', 'ai4gg_diversity.txt']
+    label_based = ['vaihingen_train_coordinate_list_method2.txt', 'ai4gg_complexity.txt']
+
     vaihingen_kvs = get_vaihingen_kvs()
     potsdam_kvs = get_potsdam_kvs()
     dfc2022_kvs = get_dfc2022_kvs()
@@ -351,13 +356,13 @@ if __name__ == "__main__":
     dfc2022_keys, dfc2022_mean_vals, dfc2022_std_vals = get_results(dfc2022_kvs)
 
     # save_patches('/mnt/DADOS_PONTOISE_1/keiller/datasets/vaihingen/Vaihingen/OFFICIAL_DATASET/', vaihingen_keys,
-    #              'vaihingen', '/mnt/DADOS_PONTOISE_1/keiller/data-centric-rs-classification/patches/',
+    #              'vaihingen', '/mnt/DADOS_PONTOISE_1/keiller/data-centric-rs-classification/patches_label/',
     #              patch_size=256, top=10)
     # save_patches('/mnt/DADOS_PONTOISE_1/keiller/datasets/potsdam/Potsdam/', potsdam_keys,
-    #              'potsdam', '/mnt/DADOS_PONTOISE_1/keiller/data-centric-rs-classification/patches/',
+    #              'potsdam', '/mnt/DADOS_PONTOISE_1/keiller/data-centric-rs-classification/patches_label/',
     #              patch_size=256, top=10)
     # save_patches('/mnt/DADOS_PONTOISE_1/keiller/datasets/df2022/labeled_train/', dfc2022_keys,
-    #              'dfc2022', '/mnt/DADOS_PONTOISE_1/keiller/data-centric-rs-classification/patches/',
+    #              'dfc2022', '/mnt/DADOS_PONTOISE_1/keiller/data-centric-rs-classification/patches_label/',
     #              patch_size=256, top=10)
 
     # vaihingen_xs = np.linspace(0, 1, len(vaihingen_keys))
