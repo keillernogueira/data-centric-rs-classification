@@ -5,4 +5,13 @@ configs/config_vaihingen_*
 configs/config_potsdam_*
 configs/config_dfc2022_*
 .DS_Store
-plots/*
+plots/*.png
+plots/statistical_test.py
+plots/dfc2022/
+plots/patches_average_all/
+plots/patches_feat/
+plots/patches_label/
+plots/potsdam/
+plots/results/
+plots/vaihingen/
+
