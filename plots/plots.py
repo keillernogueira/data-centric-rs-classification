@@ -1,6 +1,7 @@
 import os
 import glob
 import warnings
+import pickle
 from collections import defaultdict
 
 import cv2
@@ -434,14 +435,114 @@ def plot_correlation(file_file, dataset, plot_colorbar=False):
     plt.close()
 
 
+def read_label_patch(label_path, image_name, coord_x, coord_y, dfc, patch_size=256):
+    if dfc is False:
+        label_path = os.path.join(label_path, image_name + '.tif')
+    else:  # dfc
+        if vec[0] == 'Nice':
+            region = vec[0]
+            img_name = vec[1]
+        else:
+            region = '_'.join(vec[:2])
+            img_name = vec[2]
+        label_path = os.path.join(label_path, region, dataset_subpath[dataset][2], img_name + '_UA2012.png')
+
+    mask = _load_target(label_path)
+    mask_patch = mask[:, coord_x:coord_x + patch_size, coord_y:coord_y + patch_size]
+    return mask_patch
+
+
+def _encode_mask(msk):
+    msk = np.rollaxis(msk, 0, 3)
+    new = np.zeros((msk.shape[0], msk.shape[1]), dtype=int)
+
+    msk = msk // 255
+    msk = msk * (1, 7, 49)
+    msk = msk.sum(axis=2)
+
+    new[msk == 1 + 7 + 49] = 0  # Street.
+    new[msk == 49] = 1  # Building.
+    new[msk == 7 + 49] = 2  # Grass.
+    new[msk == 7] = 3  # Tree.
+    new[msk == 1 + 7] = 4  # Car.
+    new[msk == 1] = 5  # Surfaces.
+
+    return new
+
+
+def get_class_frequency(rank_path, label_path, dfc=False):
+    key_vals = defaultdict(list)
+
+    df = pd.read_csv(rank_path, delimiter=" ", header=None)
+    for index, row in df.iterrows():
+        if dfc is False:
+            patch = read_label_patch(label_path, row[2], row[3], row[4], dfc, patch_size=256)
+            enc_patch = _encode_mask(patch)
+            class_freq = np.bincount(enc_patch.flatten(), minlength=6)
+
+            key = f"{row[0]}_{row[3]}_{row[4]}"
+        else:
+            patch = read_label_patch(label_path, row[0] + "_" + row[1], row[2], row[3], dfc, patch_size=256)
+            class_freq = np.bincount(patch.flatten(), minlength=14)
+
+            key = f"{row[0]}_{row[1]}_{row[2]}_{row[3]}"
+        key_vals[key] = class_freq.tolist()
+    return key_vals
+
+
+def plot_acc_freq(keys, class_freq, title):
+    def non_decreasing(L):
+        return all(x <= y for x, y in zip(L, L[1:]))
+
+    vaihingen_color = [(1, 1, 1), (0, 0, 1), (0, 1, 1), (0, 1, 0), (1, 1, 0), (1, 0, 0)]
+    # plt.figure(figsize=(10, 6), layout='compressed')
+
+    xs = np.linspace(1, len(keys), len(keys))
+    y = []
+    for i, k in enumerate(keys):
+        if not y:
+            y.append(np.asarray(class_freq[k]))
+        else:
+            y.append(y[-1] + np.asarray(class_freq[k]))
+    y_np = np.asarray(y).T
+    print(len(keys), len(class_freq), len(y), y_np.shape)
+
+    # plot bars in stack manner
+    acc = None
+    for i, yc in enumerate(y_np):
+        print(i, non_decreasing(yc))
+        if i == 0:
+            plt.bar(xs, yc, color=vaihingen_color[i], linewidth=0)  # , edgecolor='black', linewidth=0.01)
+            acc = yc
+        else:
+            plt.bar(xs, yc, bottom=acc, color=vaihingen_color[i], linewidth=0)
+            acc += yc
+
+    # plt.rcParams.update({'font.size': 22})
+    plt.xlabel("Patch sorted by average rank", fontsize=14)
+    plt.ylabel("Class Frequency", fontsize=14)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.title(title, fontsize=14)
+
+    ax = plt.gca()
+    ax.set_xlim([0, xs[-1]])
+    ax.set_ylim([0, max(y_np.flatten())])
+    # ax.set_yscale('log')
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
+
+    plt.savefig(title + "_average_rank_class_freq.png", dpi=4000)
+
+
 if __name__ == "__main__":
-    operation = 'line_plot'
+    operation = 'acc_class_frequency'
 
     if operation == 'encoded_labels':
         # create colored maps for visualization
         dfc22_encode_labels('/mnt/DADOS_PONTOISE_1/keiller/datasets/df2022/labeled_train/Nantes_Saint-Nazaire/')
         dfc22_encode_labels('/mnt/DADOS_PONTOISE_1/keiller/datasets/df2022/labeled_train/Nice/')
-    elif operation in ['line_plot', 'save_patches', 'multiple_line']:
+    elif operation in ['line_plot', 'save_patches', 'multiple_line', 'acc_class_frequency']:
         feat_based = ['vaihingen_train_coordinate_list_method1.txt', 'ai4gg_diversity.txt']
         label_based = ['vaihingen_train_coordinate_list_method2.txt', 'ai4gg_complexity.txt']
 
@@ -486,9 +587,22 @@ if __name__ == "__main__":
                               "Potsdam", plot_bbs=False, smooth_curve=False, num=0)
             plot_line_results(dfc2022_xs, dfc2022_mean_vals, dfc2022_std_vals,
                               "DFC2022", plot_bbs=False, smooth_curve=False, num=0)
+        elif operation == 'acc_class_frequency':
+            vaihingen_class_freq = get_class_frequency("vaihingen/ai4gg_hybrid.txt",
+                                                       "/mnt/DADOS_PONTOISE_1/keiller/datasets/vaihingen/Vaihingen/"
+                                                       "OFFICIAL_DATASET/gts_for_participants/")
+            print(len(vaihingen_class_freq))
+            with open('vaihingen_class_freq.pkl', 'wb') as f:
+                pickle.dump(vaihingen_class_freq, f)
+
+            plot_acc_freq(vaihingen_keys, vaihingen_class_freq, "Vaihingen")
     elif operation == 'correlation':
         plot_correlation('dfc2022.csv', 'dfc2022')
         plot_correlation('vaihingen.csv', 'vaihingen')
         plot_correlation('potsdam.csv', 'potsdam', True)
+    elif operation == 'divergence':
+        with open('C:\\Users\\keill\\Desktop\\vaihingen_class_freq.pkl', 'rb') as f:
+            vaihingen_class_freq = pickle.load(f)
+
     else:
         raise NotImplementedError

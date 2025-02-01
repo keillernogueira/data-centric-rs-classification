@@ -58,7 +58,7 @@ def _decode_mask(msk):
 
     new[msk == 0] = (255, 255, 255)  # Street.
     new[msk == 1] = (255, 0, 0)  # Building.
-    new[msk == 2] = (255, 255, 0) # Grass.
+    new[msk == 2] = (255, 255, 0)  # Grass.
     new[msk == 3] = (0, 255, 0)  # Tree.
     new[msk == 4] = (0, 255, 255)  # Car.
     new[msk == 5] = (0, 0, 255)  # Surfaces.
