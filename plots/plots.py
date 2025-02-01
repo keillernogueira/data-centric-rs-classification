@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.interpolate import make_interp_spline, BSpline
+from matplotlib.patches import Rectangle
 from rasterio.enums import Resampling
 
 
@@ -109,7 +110,7 @@ def get_results(key_vals):
     std_vals = np.array(std_vals)
     # ind_methods = np.array(ind_methods)
 
-    idxs = np.argsort(mean_vals)[::-1]
+    idxs = np.argsort(mean_vals)  # [::-1]  # comment this to have ascending or descending
     keys = keys[idxs]
     mean_vals = mean_vals[idxs]
     std_vals = std_vals[idxs]
@@ -154,7 +155,27 @@ def smooth(xs, ys, num=250):
     return xnew, power_smooth
 
 
-def plot_line_results(xs, mean_vals, std_vals, title, smooth_curve=False, num=250):
+def find_lower_upper_bounds(mean_vals, std_vals):
+    cur_i = 0
+    cur_j = 0
+    for i in range(len(mean_vals) // 2):
+        j = len(mean_vals)
+        while mean_vals[i] + std_vals[i] < mean_vals[j-1] - std_vals[j-1]:
+            j -= 1
+
+        if cur_j == 0 or (j - i) > (cur_j - cur_i):
+        # if j != len(mean_vals) and (cur_j == 0 or ((mean_vals[j] - std_vals[j]) - (mean_vals[i] + std_vals[i])) < ((mean_vals[cur_j] - std_vals[cur_j]) - (mean_vals[cur_i] + std_vals[cur_i]))):
+            cur_i = i
+            cur_j = j
+        # i += 1
+
+    print(cur_i, cur_j, len(mean_vals), len(mean_vals)-cur_j)
+    # print('cur', mean_vals[i] + std_vals[i], mean_vals[j] - std_vals[j])
+    # print('next', mean_vals[i+1] + std_vals[i+1], mean_vals[j-1] - std_vals[j-1])
+    return cur_i, cur_j
+
+
+def plot_line_results(xs, mean_vals, std_vals, title, plot_bbs=False, smooth_curve=False, num=250):
     plt.figure(figsize=(10, 6), layout='compressed')
 
     if smooth_curve:
@@ -164,18 +185,30 @@ def plot_line_results(xs, mean_vals, std_vals, title, smooth_curve=False, num=25
     plt.plot(xs, mean_vals, label=title)
     # np.clip(mean_vals-std_vals, a_min=0, a_max=1), np.clip(mean_vals+std_vals, a_min=0, a_max=1)
     plt.fill_between(xs, mean_vals-std_vals, mean_vals+std_vals, alpha=0.5)
-    # print(min(mean_vals-vaihingen_std_vals), max(mean_vals-vaihingen_std_vals))
-    # print(min(mean_vals+vaihingen_std_vals), max(mean_vals+vaihingen_std_vals))
 
-    plt.xlabel("Patch index", fontsize=24)
-    plt.ylabel("Ranking Position", fontsize=24)
-    plt.xticks(fontsize=24)
-    plt.yticks(fontsize=24)
+    plt.xlabel("Patch sorted by average rank", fontsize=22)
+    plt.ylabel("Average Rank", fontsize=22)
+    plt.xticks(fontsize=22)
+    plt.yticks(fontsize=22)
     # plt.xscale('symlog', linthresh=1000)
     plt.xscale('linear')
 
     # plt.title(title, fontsize=15)
     ax = plt.gca()
+    up_b, low_b = find_lower_upper_bounds(mean_vals, std_vals)
+    if plot_bbs:
+        ax.add_patch(Rectangle((1, 0), up_b, mean_vals[up_b] + std_vals[up_b],
+                               edgecolor='red', fill=False, lw=1))
+        ax.add_patch(Rectangle((1+low_b, min(mean_vals[low_b:] - std_vals[low_b:])),
+                               len(mean_vals)-low_b-4, len(mean_vals)-min(mean_vals[low_b:] - std_vals[low_b:])-2,
+                               # min(mean_vals[low_b:] + std_vals[low_b:]),
+                               edgecolor='red', fill=False, lw=1))
+        ax.plot(xs, [mean_vals[up_b] + std_vals[up_b]]*len(xs),
+                linestyle='-', linewidth=0.5, color='red', dashes=(0.5, 5.), dash_capstyle='round')
+        ax.plot(xs, [min(mean_vals[low_b:] - std_vals[low_b:])] * len(xs),
+                linestyle='-', linewidth=0.5, color='red', dashes=(0.5, 5.), dash_capstyle='round')
+        # ax.annotate(str(up_b), (up_b, mean_vals[up_b] + std_vals[up_b] + 10), fontsize=16, color='red')
+
     if title == "Vaihingen":
         plt.xticks([1, 200, 400, 600, 800, 1000, 1200, 1400])
         plt.yticks([1, 200, 400, 600, 800, 1000, 1200, 1400])
@@ -402,7 +435,7 @@ def plot_correlation(file_file, dataset, plot_colorbar=False):
 
 
 if __name__ == "__main__":
-    operation = 'correlation'
+    operation = 'line_plot'
 
     if operation == 'encoded_labels':
         # create colored maps for visualization
@@ -447,9 +480,12 @@ if __name__ == "__main__":
             vaihingen_xs = np.linspace(1, len(vaihingen_keys), len(vaihingen_keys))
             potsdam_xs = np.linspace(1, len(potsdam_keys), len(potsdam_keys))
             dfc2022_xs = np.linspace(1, len(dfc2022_keys), len(dfc2022_keys))
-            plot_line_results(vaihingen_xs, vaihingen_mean_vals, vaihingen_std_vals, title="Vaihingen", smooth_curve=False, num=20)
-            plot_line_results(potsdam_xs, potsdam_mean_vals, potsdam_std_vals, "Potsdam", smooth_curve=False, num=20)
-            plot_line_results(dfc2022_xs, dfc2022_mean_vals, dfc2022_std_vals, "DFC2022", smooth_curve=False, num=20)
+            plot_line_results(vaihingen_xs, vaihingen_mean_vals, vaihingen_std_vals,
+                              title="Vaihingen", plot_bbs=False, smooth_curve=False, num=0)
+            plot_line_results(potsdam_xs, potsdam_mean_vals, potsdam_std_vals,
+                              "Potsdam", plot_bbs=False, smooth_curve=False, num=0)
+            plot_line_results(dfc2022_xs, dfc2022_mean_vals, dfc2022_std_vals,
+                              "DFC2022", plot_bbs=False, smooth_curve=False, num=0)
     elif operation == 'correlation':
         plot_correlation('dfc2022.csv', 'dfc2022')
         plot_correlation('vaihingen.csv', 'vaihingen')
