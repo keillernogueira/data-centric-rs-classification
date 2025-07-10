@@ -67,7 +67,7 @@ class ISPRSDataLoader(data.Dataset):
             self.files[index]["dsm"], self.files[index]["target"]
 
         image = self._load_image(img_path)
-        if 'vaihingen' in self.root:
+        if 'vaihingen' in self.root or 'Vaihingen' in self.root:
             dem = self._load_image(dsm_path)
         else:  # only for potsdam
             dem = self._load_image(dsm_path, shape=(1, 6000, 6000))
@@ -129,8 +129,12 @@ class ISPRSDataLoader(data.Dataset):
                                   coord_x=int(x[3]), coord_y=int(x[4])))
         else:
             files = []
-            for img in self.metadata[('vaihingen_test' if 'vaihingen' in self.root else 'potsdam_test')]:
-                if 'vaihingen' in self.root:
+            if 'vaihingen' in self.root or 'Vaihingen' in self.root:
+                mt_set = 'vaihingen_test'
+            else:
+                mt_set = 'potsdam_test'
+            for img in self.metadata[mt_set]:
+                if 'vaihingen' in self.root or 'Vaihingen' in self.root:
                     image = os.path.join(self.root, self.image_root, 'top_mosaic_09cm_area' + str(img) + '.tif')
                     dsm = os.path.join(self.root, self.dsm_root, 'dsm_09cm_matching_area' + str(img) + '.tif')
                     # encoded label - check preprocessing_data.py
@@ -189,9 +193,9 @@ class ISPRSDataLoaderPatch(data.Dataset):
                          '5_13', '5_14', '5_15', '6_13', '6_14', '6_15', '7_13'],
     }
 
-    image_root = "patches_images"
-    dsm_root = "patches_dsm"
-    target_root = "patches_masks"
+    image_root = os.path.join("patches", "images")
+    dsm_root = os.path.join("patches", "dsm")
+    target_root = os.path.join("patches", "masks")
 
     def __init__(self,
                  root,

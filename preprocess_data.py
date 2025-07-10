@@ -70,6 +70,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--operation", type=str, required=True,
                         choices=['encode_labels', 'create_patches', 'calculate_max_min'], help="Operation to perform")
+    parser.add_argument("--dataset", type=str, required=True,
+                        help="Dataset to process", choices=['vaihingen', 'potsdam', 'dfc'])
     parser.add_argument("--root_dir", type=str, required=True, help="Path to data")
     parser.add_argument("--coord_file", type=str, required=False,
                         help="Path to coordinates file. Used to create the patches.")
@@ -98,15 +100,41 @@ if __name__ == "__main__":
         for i, x in enumerate(file_list):
             print('processing...', i)
             # open image
-            image = _load_image(os.path.join(args.root_dir, 'images', x[0] + '.tif'))
-            dsm = _load_image(os.path.join(args.root_dir, 'dsm', x[1] +
-                                           ('.tif' if 'vaihingen' in args.coord_file else '.jpg')),
-                              shape=(1, image.shape[1], image.shape[2]))
-            mask = _load_target(os.path.join(args.root_dir, 'masks', x[2] + '.tif'))  # '_encoded.png'))
+            if args.dataset == 'dfc':
+                image = _load_image(os.path.join(args.root_dir, "labeled_train", x[0],
+                                                 "BDORTHO", x[1] + ".tif"))
+                dsm = _load_image(os.path.join(args.root_dir, "labeled_train", x[0],
+                                               "RGEALTI", x[1] + '_RGEALTI.tif'), shape=image.shape[1:])
+                mask = _load_target(os.path.join(args.root_dir, "labeled_train", x[0],
+                                                 "UrbanAtlas", x[1] + '_UA2012.tif'))
+                coord_x, coord_y = x[2], x[3]
+
+                # output
+                out_img = os.path.join(args.root_dir, 'patches', "labeled_train", x[0], "BDORTHO", x[1] + '_' +
+                                       str(coord_x) + '_' + str(coord_y) + '.tif')
+                out_dsm = os.path.join(args.root_dir, 'patches', "labeled_train", x[0], "RGEALTI", x[1] + '_' +
+                                       str(coord_x) + '_' + str(coord_y) + '.tif')
+                out_msk = os.path.join(args.root_dir, 'patches', "labeled_train", x[0], "UrbanAtlas", x[1] + '_' +
+                                       str(coord_x) + '_' + str(coord_y) + '.tif')
+            else:
+                # vaihingen and potsdam
+                image = _load_image(os.path.join(args.root_dir, "images", x[0] + '.tif'))
+                dsm = _load_image(os.path.join(args.root_dir, "dsm", x[1] +
+                                               ('.tif' if 'vaihingen' in args.coord_file else '.jpg')),
+                                  shape=(1, image.shape[1], image.shape[2]))
+                mask = _load_target(os.path.join(args.root_dir, "masks", x[2] + '_encoded.png'))  # '.tif'))
+                coord_x, coord_y = x[3], x[4]
+
+                # output
+                out_img = os.path.join(args.root_dir, 'patches', 'images', x[0] + '_' +
+                                       str(coord_x) + '_' + str(coord_y) + '.tif')
+                out_dsm = os.path.join(args.root_dir, 'patches', 'dsm',
+                                       x[1] + '_' + str(coord_x) + '_' + str(coord_y) + '.tif')
+                out_msk = os.path.join(args.root_dir, 'patches', 'masks',
+                                       x[2] + '_' + str(coord_x) + '_' + str(coord_y) + '_encoded.png')
             # print('1', image.shape, dsm.shape, mask.shape)
 
             # extract patch
-            coord_x, coord_y = x[3], x[4]
             image_patch = image[:, coord_x:coord_x + args.patch_size, coord_y:coord_y + args.patch_size]
             dsm_patch = dsm[:, coord_x:coord_x + args.patch_size, coord_y:coord_y + args.patch_size]
             mask_patch = mask[:, coord_x:coord_x + args.patch_size, coord_y:coord_y + args.patch_size]
@@ -115,18 +143,14 @@ if __name__ == "__main__":
             # save
             if args.patches_all == 'all':
                 # save all patches
-                with rasterio.open(os.path.join(args.root_dir, 'patches', 'images',
-                                                x[0] + '_' + str(coord_x) + '_' + str(coord_y) + '.tif'), 'w',
-                                   width=args.patch_size, height=args.patch_size,
-                                   count=(3 if 'vaihingen' in args.coord_file else 4), dtype='float32') as dst:
+                with rasterio.open(out_img, 'w', width=args.patch_size, height=args.patch_size,
+                                   count=(4 if 'potsdam' in args.coord_file else 3), dtype='float32') as dst:
                     dst.write(image_patch)
-                with rasterio.open(os.path.join(args.root_dir, 'patches', 'dsm',
-                                                x[1] + '_' + str(coord_x) + '_' + str(coord_y) + '.tif'), 'w',
-                                   width=args.patch_size, height=args.patch_size, count=1, dtype='float32') as dst:
+                with rasterio.open(out_dsm, 'w', width=args.patch_size, height=args.patch_size,
+                                   count=1, dtype='float32') as dst:
                     dst.write(dsm_patch)
-                with rasterio.open(os.path.join(args.root_dir, 'patches', 'masks',
-                                                x[2] + '_' + str(coord_x) + '_' + str(coord_y) + '_encoded.png'), 'w',
-                                   width=args.patch_size, height=args.patch_size, count=1, dtype='uint8') as dst:
+                with rasterio.open(out_msk, 'w', width=args.patch_size, height=args.patch_size,
+                                   count=1, dtype='uint8') as dst:
                     dst.write(mask_patch)
             else:
                 dsm_patch = cv2.normalize(src=dsm_patch, dst=None, alpha=0, beta=255,
@@ -145,16 +169,13 @@ if __name__ == "__main__":
                                              x[0] + '_' + str(coord_x) + '_' + str(coord_y) + '_label.png'),
                                 np.rollaxis(mask_patch, 0, 3).astype(np.uint8))
 
-
             # sanity check
-            # s_i = _load_image(os.path.join(args.root_dir, 'patches', 'images',
-            #                                x[0] + '_' + str(coord_x) + '_' + str(coord_y) + '.tif'))
-            # s_d = _load_image(os.path.join(args.root_dir, 'patches', 'dsm',
-            #                                x[1] + '_' + str(coord_x) + '_' + str(coord_y) + '.tif'))
-            # s_m = _load_target(os.path.join(args.root_dir, 'patches', 'masks',
-            #                                 x[2] + '_' + str(coord_x) + '_' + str(coord_y) + '_encoded.png'))
+            # s_i = _load_image(out_img)
+            # s_d = _load_image(out_dsm)
+            # s_m = _load_target(out_msk)
             # print('3', s_i.shape, s_d.shape, s_m.shape)
             # print('f', (image_patch == s_i).all(), (dsm_patch == s_d).all(), (mask_patch == s_m).all())
+            # break
     elif args.operation == 'calculate_max_min':
         # file_list = glob.glob(os.path.join(args.root_dir, "*_normalized_lastools.jpg"), recursive=True)
         file_list = glob.glob(os.path.join(args.root_dir, "*.tif"), recursive=True)

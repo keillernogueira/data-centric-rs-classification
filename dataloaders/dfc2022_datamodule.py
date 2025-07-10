@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from torchgeo.datasets.utils import percentile_normalization
 
-from dataloaders.dfc2022_dataloader import DFC2022
+from dataloaders.dfc2022_dataloader import DFC2022, DFC2022Patch
 
 
 DEFAULT_AUGS = K.AugmentationSequential(
@@ -36,6 +36,7 @@ class DFC2022DataModule(pl.LightningDataModule):
         val_image_file_path: str = 'val_coords.txt',
         patch_size: int = 256,
         augmentations=DEFAULT_AUGS,
+        patch_loader=True,
         **kwargs,
     ):
         super().__init__()
@@ -47,6 +48,7 @@ class DFC2022DataModule(pl.LightningDataModule):
         self.val_image_file_path = val_image_file_path
         self.patch_size = patch_size
         self.augmentations = augmentations
+        self.patch_loader = patch_loader
         # self.random_crop = T.RandomCrop((self.patch_size, self.patch_size))
         self.random_crop = K.AugmentationSequential(
             K.RandomCrop((self.patch_size, self.patch_size), p=1.0, keepdim=False),
@@ -94,9 +96,14 @@ class DFC2022DataModule(pl.LightningDataModule):
         val_transforms = T.Compose([self.preprocess, self.crop])
         test_transforms = T.Compose([self.preprocess])
 
-        self.train_dataset = DFC2022(self.root_dir, self.train_coordinate_file_path, "train",
-                                     self.patch_size, training_sample_perct=self.training_sample_perct,
-                                     transforms=train_transforms)
+        if self.patch_loader is False:
+            self.train_dataset = DFC2022(self.root_dir, self.train_coordinate_file_path, "train",
+                                         self.patch_size, training_sample_perct=self.training_sample_perct,
+                                         transforms=train_transforms)
+        else:
+            self.train_dataset = DFC2022Patch(self.root_dir, self.train_coordinate_file_path, "train",
+                                              self.patch_size, training_sample_perct=self.training_sample_perct,
+                                              transforms=train_transforms)
 
         # for validation, there is no patch size for the dataloader since patches are generated using the transforms
         self.val_dataset = DFC2022(self.root_dir, self.val_image_file_path, "train_val",

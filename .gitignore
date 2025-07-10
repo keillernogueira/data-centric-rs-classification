@@ -1,6 +1,6 @@
 /.idea/
 **.pyc
-script_test_*
+script_*
 configs/config_vaihingen_*
 configs/config_potsdam_*
 configs/config_dfc2022_*

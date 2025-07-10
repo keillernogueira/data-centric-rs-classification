@@ -171,3 +171,141 @@ class DFC2022(Dataset):
             tensor = tensor.to(torch.long)
             return tensor
 
+
+class DFC2022Patch(Dataset):
+    classes = [
+        "No information",
+        "Urban fabric",
+        "Industrial, commercial, public, military, private and transport units",
+        "Mine, dump and construction sites",
+        "Artificial non-agricultural vegetated areas",
+        "Arable land (annual crops)",
+        "Permanent crops",
+        "Pastures",
+        "Complex and mixed cultivation patterns",
+        "Orchards at the fringe of urban classes",
+        "Forests",
+        "Herbaceous vegetation associations",
+        "Open spaces with little or no vegetation",
+        "Wetlands",
+        "Water",
+        "Clouds and Shadows",
+    ]
+
+    colormap = [
+        "#231F20",
+        "#DB5F57",
+        "#DB9757",
+        "#DBD057",
+        "#ADDB57",
+        "#75DB57",
+        "#7BC47B",
+        "#58B158",
+        "#D4F6D4",
+        "#B0E2B0",
+        "#008000",
+        "#58B0A7",
+        "#995D13",
+        "#579BDB",
+        "#0062FF",
+        "#231F20",
+    ]
+
+    metadata = {
+        "train": os.path.join("patches", "labeled_train"),
+        "train_val": "labeled_train",
+        "val": "val",
+        "test": "test",
+    }
+
+    image_root = "BDORTHO"
+    dem_root = "RGEALTI"
+    target_root = "UrbanAtlas"
+
+    def __init__(
+            self,
+            root,
+            coordinate_file_path=None,
+            split="train",
+            patch_size=256,
+            training_sample_perct=1.0,
+            transforms=None
+    ) -> None:
+        assert split in self.metadata
+        self.root = root
+        self.coordinate_file_path = coordinate_file_path
+        self.split = split
+        self.patch_size = patch_size
+        self.training_sample_perct = training_sample_perct
+        self.transforms = transforms
+
+        self.files = self._load_files()
+        print(self.split, len(self.files))
+
+    def __getitem__(self, index):
+        img_path, dem_path, label_path = self.files[index]["image"], \
+                                         self.files[index]["dem"], self.files[index]["target"]
+
+        image = self._load_image(img_path)
+        dem = self._load_image(dem_path, shape=image.shape[1:])
+        image = torch.cat(tensors=[image, dem], dim=0)
+
+        mask = self._load_target(label_path)
+
+        sample = {"image": image, "mask": mask}
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
+
+        return sample
+
+    def __len__(self):
+        return len(self.files)
+
+    def _load_files(self):
+        file_list = pd.read_csv(self.coordinate_file_path, dtype=None, delimiter=' ', header=None).to_numpy()
+
+        if self.coordinate_file_path == 'dfc2022_train_coordinate_list.txt':
+            # this is the original coord list; this is only used to train the baseline model
+            # shuffle because all instances have score 1.0
+            np.random.shuffle(file_list)  # shuffle
+            sort_samples = file_list
+        else:
+            # otherwise, sort based on the score
+            # this are the correct files usually named: xxx_train_coords.txt, where xxx = name of team
+            sort_samples = file_list[file_list[:, 4].argsort()[::-1]]
+
+        # selecting samples based on the threshold
+        total_size = len(sort_samples)
+        selected_samples = sort_samples[0:int(total_size*self.training_sample_perct), :]
+        print('sanity check - average score: ', np.mean(selected_samples[:, 4]))
+
+        files = []
+        for x in selected_samples:
+            img_path = os.path.join(self.root, self.metadata[self.split], x[0], self.image_root, x[1] + '_' +
+                                    str(x[2]) + '_' + str(x[3]) + '.tif')
+            dem_path = os.path.join(self.root, self.metadata[self.split], x[0], self.dem_root, x[1] + '_' +
+                                    str(x[2]) + '_' + str(x[3]) + '.tif')
+            label_path = os.path.join(self.root, self.metadata[self.split], x[0], self.target_root, x[1] + '_' +
+                                      str(x[2]) + '_' + str(x[3]) + '.tif')
+            files.append(dict(image=img_path, dem=dem_path, target=label_path, coord_x=int(x[2]), coord_y=int(x[3])))
+
+        return files
+
+    def _load_image(self, path, shape=None):
+        with rasterio.open(path) as f:
+            array: "np.typing.NDArray[np.float_]" = f.read(
+                out_shape=shape, out_dtype="float32", resampling=Resampling.bilinear
+            )
+            tensor = torch.from_numpy(array)
+            return tensor
+
+    def _load_target(self, path):
+        with rasterio.open(path) as f:
+            array: "np.typing.NDArray[np.int_]" = f.read(
+                indexes=1, out_dtype="int32", resampling=Resampling.bilinear
+            )
+            tensor = torch.from_numpy(array)
+            tensor = tensor.to(torch.long)
+            return tensor
+

@@ -4,7 +4,7 @@ import rasterio
 
 # import pytorch_lightning as pl
 import lightning.pytorch as pl
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from omegaconf import OmegaConf
 
 from torchgeo.trainers import SemanticSegmentationTask
@@ -66,8 +66,14 @@ def main(_config):
         save_top_k=1,
         mode="min",
     )
+    early_stopping_callback = EarlyStopping(
+        monitor="val_loss",
+        patience=10,  # Number of epochs to wait for improvement
+        mode="min",
+        verbose=True
+    )
 
-    trainer = pl.Trainer(callbacks=[checkpoint_callback],
+    trainer = pl.Trainer(callbacks=[checkpoint_callback, early_stopping_callback],
                          **_config.trainer)
     trainer.fit(model=task, datamodule=datamodule)
 
