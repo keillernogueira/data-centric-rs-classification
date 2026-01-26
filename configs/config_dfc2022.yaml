@@ -17,11 +17,11 @@ learning:
     ignore_index: 0  # classes 0 & 15 are not used in scoring
 datamodule:
     dataset: "DFC2022"
-    root_dir: "/home/kno/datasets/df2022/"
+    root_dir: "/YOUR_PATH/datasets/df2022/"
     train_coordinate_file_path: "coord_files/dfc2022_train_coordinate_list.txt"
-    # 1% =~ 770, 10% =~ 7700, 25% =~ 19000, 50% =~ 38500
-    training_sample_perct: 1.0  # 68900 is the total number of training samples
+    training_sample_perct: 1.0  # 1.0 = 100% ; 0.5 = 50% ; ...
     val_image_file_path: "coord_files/dfc2022_val_image_list.txt"
-    batch_size: 64
+    batch_size: 32
     num_workers: 8
     patch_size: 256
+    patch_loader: True

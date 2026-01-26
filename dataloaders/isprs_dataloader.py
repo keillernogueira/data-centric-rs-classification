@@ -289,3 +289,135 @@ class ISPRSDataLoaderPatch(data.Dataset):
             tensor = tensor.to(torch.long)
             return tensor
 
+
+class ISPRSDataLoaderOnlinePatch(data.Dataset):
+    classes = [
+        "Impervious surfaces",
+        "Building",
+        "Low vegetation",
+        "Tree",
+        "Car",
+        "Clutter/background"
+    ]
+
+    colormap = [
+        "#ffffff",
+        "#0000ff",
+        "#00ffff",
+        "#00ff00",
+        "#ffff00",
+        "#ff0000"
+    ]
+
+    metadata = {
+        # same images used as test set for the ISPRS challenge
+        "vaihingen_test": [2, 4, 6, 8, 10, 12, 14, 16, 20, 22, 24, 27, 29, 31, 33, 35, 38],
+        "potsdam_test": ['2_13', '2_14', '3_13', '3_14', '4_13', '4_14', '4_15',
+                         '5_13', '5_14', '5_15', '6_13', '6_14', '6_15', '7_13'],
+    }
+
+    image_root = "images"
+    dsm_root = "dsm"
+    target_root = "masks"
+
+    def __init__(self,
+                 root,
+                 patch_size=256,
+                 transforms=None):
+        super().__init__()
+        self.root = root
+        self.patch_size = patch_size
+        self.transforms = transforms
+
+        self.files = self._load_files()
+        print(len(self.files))
+
+    def __getitem__(self, index):
+        img_path, dsm_path, label_path = self.files[index]["image"], \
+            self.files[index]["dsm"], self.files[index]["target"]
+
+        image = self._load_image(img_path)
+        if 'vaihingen' in self.root or 'Vaihingen' in self.root:
+            dem = self._load_image(dsm_path)
+        else:  # only for potsdam
+            dem = self._load_image(dsm_path, shape=(1, 6000, 6000))
+        image = torch.cat(tensors=[image, dem], dim=0)
+
+        mask = self._load_target(label_path)
+        sample = {"image": image, "mask": mask}
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
+
+        patches, coords = self.extract_patches(sample['image'])
+        sample = {"image": torch.from_numpy(patches), "mask": mask, "coords": coords}
+
+        return sample
+
+    def __len__(self):
+        return len(self.files)
+
+    def extract_patches(self, image_arr, stride=200):
+        _, height, width = image_arr.shape
+        patches = []
+        patches_coords = []
+
+        for i in range(0, height, stride):
+            for j in range(0, width, stride):
+                cur_x = i
+                cur_y = j
+                patch = image_arr[:, cur_x:cur_x + self.patch_size, cur_y:cur_y + self.patch_size]
+                if patch.shape[1] != self.patch_size and patch.shape[2] != self.patch_size:
+                    cur_x = i - (self.patch_size - patch.shape[1])
+                    cur_y = j - (self.patch_size - patch.shape[2])
+                    patch = image_arr[:, cur_x:cur_x + self.patch_size, cur_y:cur_y + self.patch_size]
+                elif patch.shape[1] != self.patch_size:
+                    cur_x = i - (self.patch_size - patch.shape[1])
+                    patch = image_arr[:, cur_x:cur_x + self.patch_size, cur_y:cur_y + self.patch_size]
+                elif patch.shape[2] != self.patch_size:
+                    cur_y = j - (self.patch_size - patch.shape[2])
+                    patch = image_arr[:, cur_x:cur_x + self.patch_size, cur_y:cur_y + self.patch_size]
+                patches.append(patch)
+                patches_coords.append([cur_x, cur_y])
+
+        return np.stack(patches), np.stack(patches_coords)
+
+    def _load_files(self):
+        files = []
+        if 'vaihingen' in self.root or 'Vaihingen' in self.root:
+            mt_set = 'vaihingen_test'
+        else:
+            mt_set = 'potsdam_test'
+        for img in self.metadata[mt_set]:
+            if 'vaihingen' in self.root or 'Vaihingen' in self.root:
+                image = os.path.join(self.root, self.image_root, 'top_mosaic_09cm_area' + str(img) + '.tif')
+                dsm = os.path.join(self.root, self.dsm_root, 'dsm_09cm_matching_area' + str(img) + '.tif')
+                # encoded label - check preprocessing_data.py
+                target = os.path.join(self.root, self.target_root, 'top_mosaic_09cm_area' + str(img) + '_encoded.png')
+            else:
+                image = os.path.join(self.root, self.image_root, 'top_potsdam_' + str(img) + '_RGBIR.tif')
+                dsm = os.path.join(self.root, self.dsm_root, 'dsm_potsdam_0' + str(img) + '_normalized_lastools.jpg')
+                # encoded label - check preprocessing_data.py
+                target = os.path.join(self.root, self.target_root, 'top_potsdam_' + str(img) + '_label_encoded.png')
+
+            files.append(dict(image=image, dsm=dsm, target=target))
+
+        return files
+
+    def _load_image(self, path, shape=None):
+        with rasterio.open(path) as f:
+            array: "np.typing.NDArray[np.float_]" = f.read(
+                out_shape=shape, out_dtype="float32", resampling=Resampling.bilinear
+            )
+            tensor = torch.from_numpy(array)
+            return tensor
+
+    def _load_target(self, path):
+        with rasterio.open(path) as f:
+            array: "np.typing.NDArray[np.int_]" = f.read(
+                out_dtype="int32", resampling=Resampling.bilinear
+            )
+            tensor = torch.from_numpy(array)
+            tensor = tensor.to(torch.long)
+            return tensor
+

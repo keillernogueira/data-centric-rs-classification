@@ -33,6 +33,7 @@ def write_mask(mask, path, output_dir):
 
 @torch.no_grad()
 def predict_torch_metrics(config_file, log_dir, device):
+    print('using ', device)
     general_config = OmegaConf.load(config_file)
 
     # Load checkpoint and config
@@ -41,7 +42,7 @@ def predict_torch_metrics(config_file, log_dir, device):
 
     # Load model
     task = SemanticSegmentationTask.load_from_checkpoint(ckpt)
-    task = task.to(device)
+    task = task.to(device)  # .to(torch.float16)
     task.eval()
 
     # Load datamodule and dataloader
@@ -81,7 +82,7 @@ def predict_torch_metrics(config_file, log_dir, device):
     #                                                     ignore_index=trained_params.ignore_index).to(device)
 
     for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
-        x = batch["image"].to(device)
+        x = batch["image"].to(device)  # .to(torch.float16)
         print('input image', x.shape, batch["mask"].shape)
         h, w = x.shape[-2:]
         x = pad(x)
@@ -109,8 +110,10 @@ def predict_torch_metrics(config_file, log_dir, device):
     print(torch.mean(ave_jac_specific_classes))  # calculate the final average
     # print(torch.std(ave_jac_specific_classes))
 
+    print(ave_jac_specific_classes.cpu().numpy(), torch.mean(ave_jac_specific_classes).cpu().item())
     # print(np.mean(accuracy), np.std(accuracy))
     # print(confusion_matrix)
+    return ave_jac_specific_classes.cpu().numpy(), torch.mean(ave_jac_specific_classes).cpu().item()
 
 
 if __name__ == "__main__":

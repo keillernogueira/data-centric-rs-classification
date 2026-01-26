@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from torchgeo.datasets.utils import percentile_normalization
 
-from dataloaders.isprs_dataloader import ISPRSDataLoader, ISPRSDataLoaderPatch
+from dataloaders.isprs_dataloader import ISPRSDataLoader, ISPRSDataLoaderPatch, ISPRSDataLoaderOnlinePatch
 
 
 DEFAULT_AUGS = K.AugmentationSequential(
@@ -112,6 +112,9 @@ class ISPRSDataModule(pl.LightningDataModule):
         self.test_dataset = ISPRSDataLoader(self.root_dir, None, "test",
                                             patch_size=-1, transforms=test_transforms)
 
+        self.predict_dataset = ISPRSDataLoaderOnlinePatch(self.root_dir, self.patch_size,
+                                                          transforms=test_transforms)
+
     def train_dataloader(self):
         return DataLoader(
             self.train_dataset,
@@ -135,6 +138,9 @@ class ISPRSDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             shuffle=False,
         )
+
+    def predict_dataloader(self):
+        return self.predict_dataset
 
     def on_after_batch_transfer(self, batch, dataloader_idx):
         if self.trainer.training:

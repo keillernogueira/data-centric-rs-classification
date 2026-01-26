@@ -1,10 +1,10 @@
 /.idea/
 **.pyc
 script_*
-configs/config_vaihingen_*
-configs/config_potsdam_*
-configs/config_dfc2022_*
+experiments.py
+
 .DS_Store
+
 plots/*.png
 plots/statistical_test.py
 plots/dfc2022/
@@ -15,3 +15,6 @@ plots/potsdam/
 plots/results/
 plots/vaihingen/
 
+configs/*
+!configs/config_dfc2022.yaml
+!configs/config_vaihingen.yaml
