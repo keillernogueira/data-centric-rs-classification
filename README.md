@@ -14,6 +14,8 @@ This project uses PyTorch 2.x. All necessary packages can be found in the requir
 
 You can find some of proposed core-set methods [here](https://github.com/microsoft/data-centric-satellite-segmentation)
 
+The implementation code for the proposed Feature Activation (FA) and Class Balance (CB) methods is provided in the *Method-FA-CB* directory. Prior to implementing the CB method, the class distribution of the dataset should be obtained by executing *obtain class distribution.py*. A class distribution file *potsdam_class_distribution.csv* for the Potsdam dataset is provided as an example.
+
 ### Model training
 
 #### Training
